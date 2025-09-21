@@ -1,0 +1,266 @@
+<!doctype html>
+<html lang="sk">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Textová futbalová kariéra — Hra (Rozšírená)</title>
+<style>
+  :root{--bg:#071022;--card:#0f1724;--accent:#1fb6ff;--muted:#9aa7bd}
+  html,body{height:100%;margin:0;font-family:Inter, Roboto, system-ui, sans-serif;background:linear-gradient(180deg,#021227 0%, #061029 100%);color:#e6f0ff}
+  .wrap{max-width:980px;margin:18px auto;padding:18px}
+  header{display:flex;justify-content:space-between;align-items:center}
+  h1{margin:0;font-size:20px}
+  #log{background:linear-gradient(180deg,#081729,#06131c);padding:14px;border-radius:10px;min-height:320px;max-height:420px;overflow:auto;border:1px solid rgba(255,255,255,0.03)}
+  .hud{display:flex;gap:12px;margin-top:12px}
+  .card{background:var(--card);padding:12px;border-radius:10px;flex:1;border:1px solid rgba(255,255,255,0.03)}
+  .actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+  button{background:var(--accent);border:none;padding:8px 12px;border-radius:8px;color:#012;cursor:pointer;font-weight:700}
+  .muted{color:var(--muted)}
+  .stat{display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px dashed rgba(255,255,255,0.03)}
+  .small{font-size:13px;color:var(--muted)}
+  select,input[type=number]{width:100%;padding:8px;border-radius:8px;border:1px solid rgba(255,255,255,0.05);background:transparent;color:inherit}
+  .row{display:flex;gap:10px}
+  .col{flex:1}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Textová kariéra futbalistu — rozšírená verzia</h1>
+    <div class="small">Vyber ligu a klub na začiatku. Po každej sezóne dostaneš reálne ponuky prestupu.</div>
+  </header>
+
+  <div class="hud">
+    <div class="card" style="flex:2">
+      <div id="playerName" style="font-weight:800;font-size:18px"></div>
+      <div class="small" id="bio"></div>
+      <div style="margin-top:8px">
+        <div class="stat"><div>Vek</div><div id="age"></div></div>
+        <div class="stat"><div>Status</div><div id="status"></div></div>
+        <div class="stat"><div>Klub</div><div id="club"></div></div>
+        <div class="stat"><div>Liga</div><div id="league"></div></div>
+        <div class="stat"><div>Reputácia</div><div id="rep"></div></div>
+      </div>
+      <div style="margin-top:8px">
+        <div class="small">Štatistiky</div>
+        <div class="stat"><div>Útočenie</div><div id="atk"></div></div>
+        <div class="stat"><div>Obrana</div><div id="def"></div></div>
+        <div class="stat"><div>Technika</div><div id="tec"></div></div>
+        <div class="stat"><div>Fyzika</div><div id="phy"></div></div>
+        <div class="stat"><div>Mentálne</div><div id="men"></div></div>
+      </div>
+    </div>
+
+    <div class="card" style="flex:3;display:flex;flex-direction:column">
+      <div id="log"></div>
+      <div class="actions" id="actions"></div>
+    </div>
+  </div>
+
+  <div style="display:flex;gap:10px;margin-top:12px">
+    <div class="card" style="flex:1">
+      <div class="small">Sezóna</div>
+      <div style="font-weight:800;font-size:22px" id="season"></div>
+      <div class="small">Góly / Asistence / Zápasy</div>
+      <div id="seasonStats" style="margin-top:6px">0 / 0 / 0</div>
+    </div>
+    <div class="card" style="width:220px">
+      <div class="small">Sponzori / Peniaze</div>
+      <div style="font-weight:800;font-size:18px" id="money">€0</div>
+      <div class="small" style="margin-top:6px">Zranenie: <span id="injury">Žiadne</span></div>
+    </div>
+  </div>
+
+  <footer style="margin-top:12px;color:var(--muted);font-size:13px">Tip: Hra reaguje na tvoje rozhodnutia — trénuj, staraj sa o kondíciu a vyber rozumné prestupy.</footer>
+</div>
+
+<script>
+// ---------- Dáta: Top 10 líg + príklady klubov ----------
+const leagues = {
+  "Premier League (Anglicko)": ["Manchester City","Arsenal","Liverpool","Manchester United","Chelsea","Tottenham"],
+  "La Liga (Španielsko)": ["Real Madrid","FC Barcelona","Atlético Madrid","Sevilla","Real Sociedad","Valencia"],
+  "Bundesliga (Nemecko)": ["Bayern Mníchov","Borussia Dortmund","RB Leipzig","Bayer Leverkusen","Eintracht Frankfurt"],
+  "Serie A (Taliansko)": ["Juventus","AC Miláno","Inter Miláno","AS Rím","SSC Neapol","Fiorentina"],
+  "Ligue 1 (Francúzsko)": ["Paris Saint-Germain","AS Monaco","Olympique Lyon","Olympique Marseille","Lille"],
+  "Primeira Liga (Portugalsko)": ["Benfica","Sporting CP","FC Porto","SC Braga"],
+  "Eredivisie (Holandsko)": ["Ajax","PSV Eindhoven","Feyenoord","AZ Alkmaar"],
+  "Pro League (Belgicko)": ["Club Brugge","Anderlecht","Royal Antwerp","Genk"],
+  "Süper Lig (Turecko)": ["Galatasaray","Fenerbahçe","Beşiktaş","Trabzonspor"],
+  "Austrian Bundesliga (Rakúsko)": ["Red Bull Salzburg","Rapid Viedeň","Austria Viedeň","Sturm Graz"]
+};
+
+// mapovanie klub -> základná sila (0-100), odhad podľa reálnej úrovne
+const clubStrength = {};
+Object.keys(leagues).forEach(l=>{
+  leagues[l].forEach((c,i)=>{
+    // väčšie kluby dostanú vyššiu základnú silu
+    const base = 40 + Math.round((leagues[l].length - i) * (40 / leagues[l].length));
+    clubStrength[c] = base + Math.round(Math.random()*12 - 6);
+  });
+});
+
+// ---------- Stav hry ----------
+const state = {
+  name: '', age:17, season:1, league:null, club:null, reputation:20,
+  stats:{atk:55,def:40,tec:50,phy:50,men:45}, money:5000,
+  seasonGoals:0, seasonAssists:0, seasonApps:0, injury:null, retired:false, _turn:0
+};
+
+// ---------- UI helpers ----------
+function log(msg){ const el=document.getElementById('log'); const p=document.createElement('div'); p.innerHTML=msg; el.appendChild(p); el.scrollTop=el.scrollHeight; }
+function updateUI(){
+  document.getElementById('playerName').textContent = state.name || 'Mladý hráč (klikni Začni)';
+  document.getElementById('bio').textContent = `Pozícia: Útočník • Cieľ: Stať sa profesionálom`;
+  document.getElementById('age').textContent = state.age + ' rokov';
+  document.getElementById('club').textContent = state.club || '-';
+  document.getElementById('league').textContent = state.league || '-';
+  document.getElementById('rep').textContent = state.reputation;
+  document.getElementById('atk').textContent = state.stats.atk;
+  document.getElementById('def').textContent = state.stats.def;
+  document.getElementById('tec').textContent = state.stats.tec;
+  document.getElementById('phy').textContent = state.stats.phy;
+  document.getElementById('men').textContent = state.stats.men;
+  document.getElementById('season').textContent = 'Sezóna ' + state.season + ' • Vek ' + state.age;
+  document.getElementById('seasonStats').textContent = `${state.seasonGoals} / ${state.seasonAssists} / ${state.seasonApps}`;
+  document.getElementById('money').textContent = '€' + state.money;
+  document.getElementById('injury').textContent = state.injury ? state.injury.type + ' ('+state.injury.turns+' kôl)' : 'Žiadne';
+  document.getElementById('status').textContent = state.retired ? 'V dôchodku' : 'Aktívny';
+}
+
+function clearActions(){ document.getElementById('actions').innerHTML = ''; }
+function addAction(text, fn){ const btn=document.createElement('button'); btn.textContent=text; btn.onclick=fn; document.getElementById('actions').appendChild(btn); }
+
+// ---------- Štart hry + výber ligy a klubu ----------
+function startScreen(){
+  clearActions(); log('<b>Vitaj v rozšírenej kariére! Najprv si vyber ligu a klub.</b>');
+  // vytvor formulár výberu
+  const container = document.getElementById('actions'); container.innerHTML='';
+  const selLeague = document.createElement('select'); selLeague.id='selLeague';
+  const opt = document.createElement('option'); opt.text='-- Vyber ligu --'; opt.value=''; selLeague.appendChild(opt);
+  Object.keys(leagues).forEach(l=>{ const o=document.createElement('option'); o.value=l; o.text=l; selLeague.appendChild(o); });
+  const selClub = document.createElement('select'); selClub.id='selClub'; const oc=document.createElement('option'); oc.text='-- Najprv liga --'; oc.value=''; selClub.appendChild(oc);
+  const nameInput = document.createElement('input'); nameInput.placeholder='Zadaj meno (napr. Peter)';
+  const ageInput = document.createElement('input'); ageInput.type='number'; ageInput.min=16; ageInput.max=40; ageInput.value=17;
+  const startBtn = document.createElement('button'); startBtn.textContent='Začni kariéru';
+
+  selLeague.onchange = ()=>{
+    selClub.innerHTML=''; const def=document.createElement('option'); def.text='-- Vyber klub --'; def.value=''; selClub.appendChild(def);
+    const l = selLeague.value; if(!l) return;
+    leagues[l].forEach(c=>{ const o=document.createElement('option'); o.value=c; o.text=c; selClub.appendChild(o); });
+  };
+
+  startBtn.onclick = ()=>{
+    const chosenLeague = selLeague.value; const chosenClub = selClub.value; const name = nameInput.value || 'Peter'; const age = parseInt(ageInput.value)||17;
+    if(!chosenLeague || !chosenClub){ alert('Prosím vyber ligu a klub.'); return; }
+    state.name = name; state.age = age; state.league = chosenLeague; state.club = chosenClub;
+    // nastaviť reputáciu blízko sily klubu + náhodný posun
+    state.reputation = Math.max(10, Math.min(85, Math.round(clubStrength[chosenClub] + rnd(-10,10))));
+    state.money = 20000 + Math.round(state.reputation * 200);
+    log(`<b>${state.name}</b> začína v <b>${state.club}</b> (${state.league}). Reputácia: ${state.reputation}.`);
+    updateUI(); nextTurn();
+  };
+
+  // pridaj elementy do actions
+  const div = document.getElementById('actions'); div.appendChild(nameInput); div.appendChild(ageInput); div.appendChild(selLeague); div.appendChild(selClub); div.appendChild(startBtn);
+}
+
+// ---------- Herné akcie ----------
+function nextTurn(){
+  if(state.retired){ clearActions(); addAction('Začni novú hru', ()=>location.reload()); return; }
+  clearActions();
+  if(state.injury){ log(`<i>Stále si zranený: ${state.injury.type}, zostáva kôl: ${state.injury.turns}</i>`); state.injury.turns--; if(state.injury.turns<=0){ log('Zranenie sa zahojilo.'); state.injury=null; } }
+  addAction('Tréning', training);
+  addAction('Hrať zápas', playMatch);
+  addAction('Uložiť peniaze / Zmluva', signContract);
+  addAction('Ukáž štatistiky', ()=>{ log(`<b>Štatistiky:</b> ATK ${state.stats.atk} DEF ${state.stats.def} TEC ${state.stats.tec} PHY ${state.stats.phy} MEN ${state.stats.men}`); });
+}
+
+function training(){ if(consumeTime()) return; const t = prompt('Typ tréningu: 1=Útočenie,2=Technika,3=Fyzika,4=Mentálne','1'); const ch=parseInt(t)||1; const gains=rnd(1,3); if(ch===1) state.stats.atk=Math.min(100,state.stats.atk+gains); else if(ch===2) state.stats.tec=Math.min(100,state.stats.tec+gains); else if(ch===3) state.stats.phy=Math.min(100,state.stats.phy+gains); else state.stats.men=Math.min(100,state.stats.men+gains); const money=rnd(100,400); state.money+=money; log(`Tréning: +${gains} (typ ${ch}). Bonus €${money}.`); ageing(); updateUI(); nextTurn(); }
+
+function playMatch(){ if(consumeTime()) return; const clubLvl = Math.round(clubStrength[state.club] + rnd(-6,6)); const playerImpact = Math.round((state.stats.atk*1.1 + state.stats.tec*0.9 + state.stats.phy*0.6 + state.stats.men*0.6)/3.6); const perf = playerImpact + rnd(-12,12); const opp = Math.round(Math.max(20, clubLvl + rnd(-14,14))); log(`<b>Zápas proti tímu s úrovňou ${opp}.</b>`);
+  let goals=0,assists=0;
+  if(perf > opp + 8){ goals=rnd(1,3); assists=rnd(0,2); log(`Skvelý zápas! Góly: ${goals}, Asistence: ${assists}.`); state.reputation+=3; state.money+=1000; }
+  else if(perf > opp - 2){ goals=rnd(0,1); assists=rnd(0,1); log(`Dobrý výkon. Góly: ${goals}, Asistence: ${assists}.`); state.reputation+=1; state.money+=400; }
+  else { log('Ťažký deň — bez hodných momentov.'); state.money+=100; }
+  state.seasonGoals+=goals; state.seasonAssists+=assists; state.seasonApps+=1;
+  // zranenie
+  if(rnd(1,100) <= Math.max(2,8 - Math.floor(state.stats.phy/20))){ const inj={type:rndInjury(),turns:rnd(1,4)}; state.injury=inj; log(`<b style=\"color:#ffb3b3\">Zranenie: ${inj.type}, ${inj.turns} kôl.</b>`); }
+  state.reputation = Math.max(0, Math.min(100, state.reputation)); ageing(); updateUI(); nextTurn(); }
+
+function rndInjury(){ const a=['natiahnutie svalov','vyvrtnutý členok','menšie zranenie kolena','náraz do lýtka']; return a[rnd(0,a.length-1)]; }
+
+function signContract(){ if(consumeTime()) return; const choice = prompt('Vyber zmluvu: 1=Krátkodobá (viac €, -rep) 2=Stabilná (+rep)','2'); if(choice==='1'){ const cash=rnd(4000,10000); state.money+=cash; state.reputation=Math.max(0,state.reputation-rnd(1,6)); log(`Krátkodobá zmluva: +€${cash}, reputácia -.`); } else { const cash=rnd(1000,3500); state.money+=cash; state.reputation=Math.min(100,state.reputation+rnd(1,4)); log(`Stabilná zmluva: +€${cash}, reputácia +.`); } ageing(); updateUI(); nextTurn(); }
+
+// ---------- Prestupy po sezóne ----------
+function endOfSeason(){
+  log(`<b>Sezóna ${state.season} skončila.</b> Zhrnutie: ${state.seasonGoals} góly, ${state.seasonAssists} asistencie v ${state.seasonApps} zápasoch.`);
+  const improve = Math.min(6, Math.floor(state.seasonGoals/2) + Math.floor(state.seasonAssists/3) + Math.round(state.reputation/50));
+  distributeGains(improve);
+  state.season++; state.age++; state.seasonGoals=0; state.seasonAssists=0; state.seasonApps=0;
+  // šanca na koniec kariéry
+  if(state.age >= 35 || state.reputation < 5){ state.retired=true; log('<b>Koniec kariéry — odchádzaš do dôchodku.</b>'); updateUI(); clearActions(); addAction('Začni novú hru', ()=>location.reload()); return; }
+
+  // Generuj ponuky prestupu
+  generateTransferOffers(); updateUI();
+}
+
+function generateTransferOffers(){
+  clearActions();
+  log('<b>Prestupové okno:</b> Po sezóne dostaneš ponuky. Vyber, či chceš zostať alebo prestúpiť.');
+  // Vytvor zoznam možných klubov podľa reputácie
+  const offers = [];
+  // ak reputácia nízka -> kluby z rovnakej/regiónovej ligy alebo nižšie
+  const rep = state.reputation;
+  // zostav všetky kluby do jedného poľa s odhadovanou úrovňou (strength)
+  const allClubs = [];
+  Object.keys(leagues).forEach(l=>{ leagues[l].forEach(c=> allClubs.push({club:c,league:l,str:clubStrength[c]})); });
+  // sort podľa preferencie (klub strength closer to rep*1.0) + prefer in stronger leagues
+  allClubs.sort((a,b)=> Math.abs(a.str - rep) - Math.abs(b.str - rep) + (a.str - b.str)*0.01);
+
+  // vyber 3 najvhodnejších, ale pridať aj 1-2 lepšie ponuky ak rep vysoká
+  for(let i=0;i<5 && offers.length<3 && i<allClubs.length;i++){
+    const cand = allClubs[i];
+    // neponúkaj aktuálny klub
+    if(cand.club === state.club) continue;
+    // filtrovať podľa reputácie: ak rep <30, nech sú menšie alebo rovnaké
+    if(rep < 30 && cand.str > rep + 25) continue;
+    // ak rep vysoká, pridať šancu na top klub
+    if(rep >= 70 && cand.str > rep + 10){ if(rnd(1,100) < 40) offers.push(cand); else continue; }
+    else offers.push(cand);
+  }
+  // ak žiadne ponuky, daj aspoň jednu regionálnu
+  if(offers.length===0){ offers.push(allClubs.find(c=> c.club!==state.club)); }
+
+  // Zobraz ponuky
+  offers.forEach(o=>{
+    const wage = Math.round(1000 + o.str * 120 + rnd(-300,900));
+    log(`<div><b>${o.club}</b> (${o.league}) ponúka plat €${wage}/mesačne, úroveň tímu ${o.str}.</div>`);
+    addAction(`Prijať: ${o.club}`, ()=>{ acceptTransfer(o, wage); });
+  });
+  addAction('Zostať v aktuálnom klube', ()=>{ log('Rozhodol si sa zostať.'); nextTurn(); });
+}
+
+function acceptTransfer(offer, wage){
+  log(`<b>Prestup prijatý:</b> Prestupuješ do ${offer.club} (${offer.league}). Plat: €${wage}/mesiac.`);
+  state.club = offer.club; state.league = offer.league; state.money += wage * 3; state.reputation = Math.min(100, state.reputation + Math.round((offer.str - state.reputation)/8) + 3);
+  updateUI(); nextTurn(); }
+
+// ---------- Off-season a rozdelenie ziskov ----------
+function ageing(){
+  state._turn = (state._turn||0) + 1;
+  if(state._turn % 6 === 0){ // koniec sezóny
+    endOfSeason();
+  }
+}
+
+function distributeGains(points){ if(points<=0){ log('Bez výrazného zlepšenia tento rok.'); return; } log(`Zlepšenie počas off-season: +${points} bodov do štatistík.`); for(let i=0;i<points;i++){ const s=['atk','tec','phy','men','def'][rnd(0,4)]; state.stats[s]=Math.min(100,state.stats[s]+1); } }
+
+// ---------- Utility ----------
+function consumeTime(){ return false; }
+function rnd(min,max){ return Math.floor(Math.random()*(max-min+1))+min; }
+
+// ---------- Inicializácia UI ----------
+updateUI(); startScreen();
+</script>
+</body>
+</html>
