@@ -9,75 +9,46 @@
 </head>
 <body>
 <script src="https://cdn.jsdelivr.net/npm/three@0.155.0/build/three.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/three@0.155.0/examples/js/controls/PointerLockControls.js"></script>
 
 <script>
 let scene = new THREE.Scene();
-scene.background = new THREE.Color(0x87CEEB); // modré nebo
+scene.background = new THREE.Color(0x87CEEB);
 
-let camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 1000);
+// Kamera
+let camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 100);
+camera.position.set(5, 10, 15);
+camera.lookAt(0,0,0);
+
 let renderer = new THREE.WebGLRenderer({antialias: true});
 renderer.setSize(window.innerWidth, window.innerHeight);
 document.body.appendChild(renderer.domElement);
 
 // Svetlo
 let light = new THREE.DirectionalLight(0xffffff, 1);
-light.position.set(5, 10, 7.5);
+light.position.set(10, 20, 10);
 scene.add(light);
+scene.add(new THREE.AmbientLight(0xffffff, 0.3));
 
-let ambient = new THREE.AmbientLight(0xffffff, 0.3);
-scene.add(ambient);
-
-// Podlaha
+// Bloky (podlaha)
 let blockSize = 1;
-let blockGeometry = new THREE.BoxGeometry(blockSize, blockSize, blockSize);
-let blockMaterial = new THREE.MeshLambertMaterial({color: 0x8B4513});
+let geometry = new THREE.BoxGeometry(blockSize, blockSize, blockSize);
+let material = new THREE.MeshLambertMaterial({color: 0x8B4513});
 
 for(let x=-5; x<=5; x++){
   for(let z=-5; z<=5; z++){
-    let block = new THREE.Mesh(blockGeometry, blockMaterial);
-    block.position.set(x, -0.5, z);
+    let block = new THREE.Mesh(geometry, material);
+    block.position.set(x, 0, z);
     scene.add(block);
   }
 }
 
-// Kamera
-camera.position.set(0, 1.5, 5);
-
-// PointerLockControls
-let controls = new THREE.PointerLockControls(camera, document.body);
-document.body.addEventListener('click', () => controls.lock());
-
-// Pohyb
-let moveForward=false, moveBackward=false, moveLeft=false, moveRight=false;
-document.addEventListener('keydown', (e)=>{
-  if(e.code==='KeyW') moveForward=true;
-  if(e.code==='KeyS') moveBackward=true;
-  if(e.code==='KeyA') moveLeft=true;
-  if(e.code==='KeyD') moveRight=true;
-});
-document.addEventListener('keyup', (e)=>{
-  if(e.code==='KeyW') moveForward=false;
-  if(e.code==='KeyS') moveBackward=false;
-  if(e.code==='KeyA') moveLeft=false;
-  if(e.code==='KeyD') moveRight=false;
-});
-
 // Animácia
-let clock = new THREE.Clock();
-function animate(){
+function animate() {
   requestAnimationFrame(animate);
-  let delta = clock.getDelta();
-  let speed = 5 * delta;
-
-  if(moveForward) controls.moveForward(speed);
-  if(moveBackward) controls.moveForward(-speed);
-  if(moveLeft) controls.moveRight(-speed);
-  if(moveRight) controls.moveRight(speed);
-
   renderer.render(scene, camera);
 }
 animate();
 </script>
 </body>
 </html>
+
