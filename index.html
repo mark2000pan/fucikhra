@@ -1,54 +1,46 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="sk">
 <head>
-<meta charset="UTF-8">
-<title>Mini 3D Minecraft</title>
-<style>
-  body { margin: 0; overflow: hidden; }
-</style>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Mobile Unboxer — Demo</title>
+  <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
-<script src="https://cdn.jsdelivr.net/npm/three@0.155.0/build/three.min.js"></script>
+  <div class="app">
+    <header>
+      <h1>Mobile Unboxer</h1>
+      <div class="hud">
+        <div id="credits">Coins: <strong>0</strong></div>
+        <button id="earnBtn">Zarobiť +500</button>
+      </div>
+    </header>
 
-<script>
-let scene = new THREE.Scene();
-scene.background = new THREE.Color(0x87CEEB);
+    <main>
+      <section class="store">
+        <h2>Obchod</h2>
+        <div id="storeList" class="cards"></div>
+      </section>
 
-// Kamera
-let camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 100);
-camera.position.set(5, 10, 15);
-camera.lookAt(0,0,0);
+      <section class="inventory">
+        <h2>Inventár</h2>
+        <div id="inventoryList" class="cards"></div>
+      </section>
 
-let renderer = new THREE.WebGLRenderer({antialias: true});
-renderer.setSize(window.innerWidth, window.innerHeight);
-document.body.appendChild(renderer.domElement);
+      <section class="unboxArea">
+        <h2>Unboxing</h2>
+        <div id="unboxStage" class="unboxStage">
+          <div id="unboxInstructions">Kúp telefón a klikni na "Unbox".</div>
+        </div>
+      </section>
+    </main>
 
-// Svetlo
-let light = new THREE.DirectionalLight(0xffffff, 1);
-light.position.set(10, 20, 10);
-scene.add(light);
-scene.add(new THREE.AmbientLight(0xffffff, 0.3));
+    <footer>
+      <small>Pridaj obrázky (napr. <code>s25ultra_store.png</code>) do rovnakého priečinka ako tento projekt.</small>
+    </footer>
+  </div>
 
-// Bloky (podlaha)
-let blockSize = 1;
-let geometry = new THREE.BoxGeometry(blockSize, blockSize, blockSize);
-let material = new THREE.MeshLambertMaterial({color: 0x8B4513});
-
-for(let x=-5; x<=5; x++){
-  for(let z=-5; z<=5; z++){
-    let block = new THREE.Mesh(geometry, material);
-    block.position.set(x, 0, z);
-    scene.add(block);
-  }
-}
-
-// Animácia
-function animate() {
-  requestAnimationFrame(animate);
-  renderer.render(scene, camera);
-}
-animate();
-</script>
+  <script src="app.js"></script>
 </body>
 </html>
 
