@@ -1,0 +1,11 @@
+[
+  {
+    "id": "s25ultra",
+    "prefix": "s25ultra_",
+    "name": "Samsung Galaxy S25 Ultra",
+    "price": 800,
+    "rarity": "legendary",
+    "description": "Top-end flagship. Skvelá kamera a výkon.",
+    "resale": 0.6
+  }
+]
